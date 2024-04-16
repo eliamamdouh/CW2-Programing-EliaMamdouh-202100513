@@ -145,15 +145,34 @@ void handle_client(int client_socket, int id) {
     char name[MAX_LEN], str[MAX_LEN];
     recv(client_socket, name, sizeof(name), 0);
     recv(client_socket, str, sizeof(str), 0); // Receive password
-    if (!authenticate_user(name, str)) {
-        // Inform the client that authentication failed
-        send(client_socket, "0", 2, 0); // Authentication failed
-        // Close the connection and exit the function
+    int choice;
+    recv(client_socket, &choice, sizeof(choice), 0); // Receive choice (1 for sign-up, 2 for login)
+
+    if (choice == 1) { // Sign-up
+        if (!signup_user(name, str)) {
+            // Inform the client that sign-up failed
+            send(client_socket, "0", 2, 0); // Sign-up failed
+            // Close the connection and exit the function
+            close(client_socket);
+            return;
+        }
+        // Inform the client that sign-up was successful
+        send(client_socket, "1", 2, 0); // Sign-up success
+    } else if (choice == 2) { // Login
+        if (!authenticate_user(name, str)) {
+            // Inform the client that login failed
+            send(client_socket, "0", 2, 0); // Authentication failed
+            // Close the connection and exit the function
+            close(client_socket);
+            return;
+        }
+        // Inform the client that login was successful
+        send(client_socket, "1", 2, 0); // Authentication success
+    } else {
+        // Invalid choice
         close(client_socket);
         return;
     }
-    // Inform the client that authentication was successful
-    send(client_socket, "1", 2, 0); // Authentication success
 
     // Display welcome message
     string welcome_message = string(name) + " has joined";
@@ -229,4 +248,3 @@ bool signup_user(const string& username, const string& password) {
     file.close();
     return true;
 }
-

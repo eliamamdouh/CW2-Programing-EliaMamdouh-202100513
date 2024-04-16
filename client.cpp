@@ -60,6 +60,9 @@ int main() {
             cout << "Sign-up failed. Exiting..." << endl;
             close(client_socket);
             exit(EXIT_FAILURE);
+        } else {
+            cout << "Signup successful." << endl;
+            // Don't exit here, let the program continue
         }
     } else if (choice == 2) {
         login_success = login_user(client_socket);
@@ -69,12 +72,15 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    if (!login_success) {
+    // If login was successful or user chose to log in after signing up,
+    // continue running the chat room.
+    if (!login_success && choice == 2) {
         cout << "Log-in failed. Exiting..." << endl;
         close(client_socket);
         exit(EXIT_FAILURE);
     }
 
+    // Start sending and receiving messages
     thread t1(send_message, client_socket);
     thread t2(recv_message, client_socket);
 
@@ -148,8 +154,11 @@ bool login_user(int client_socket) {
     cout << "Enter your password: ";
     cin.getline(password, sizeof(password));
 
+    // Send choice (2 for login)
+    int choice = 2;
     send(client_socket, username, sizeof(username), 0);
     send(client_socket, password, sizeof(password), 0);
+    send(client_socket, &choice, sizeof(choice), 0);
 
     char response[2];
     recv(client_socket, response, sizeof(response), 0);
@@ -163,24 +172,25 @@ bool signup_user(int client_socket) {
     cout << "Enter a password: ";
     cin.getline(password_signup, sizeof(password_signup));
 
+    // Send choice (1 for sign-up)
+    int choice = 1;
     send(client_socket, username_signup, sizeof(username_signup), 0);
     send(client_socket, password_signup, sizeof(password_signup), 0);
+    send(client_socket, &choice, sizeof(choice), 0);
 
     char response[2];
     recv(client_socket, response, sizeof(response), 0);
     if (response[0] == '1') {
-        cout << "Signup successful. Do you want to sign up again (1) or log in (2)? ";
-        int choice;
-        cin >> choice;
-        cin.ignore(); // Clear input buffer
-        if (choice == 1) {
-            return signup_user(client_socket); // Recursive call to signup again
-        } else if (choice == 2) {
-            return true; // Continue with login
-        } else {
-            cout << "Invalid choice. Exiting..." << endl;
+        cout << "Signup successful." << endl;
+        ofstream file("user_credentials.txt", ios::app);
+        if (!file.is_open()) {
+            cerr << "Error: Unable to open file for writing." << endl;
             return false;
         }
+        // Save new user credentials to file
+        file << username_signup << " " << password_signup << endl;
+        file.close();
+        return true; // Return true after successful sign-up
     } else {
         cout << "Signup failed. Exiting..." << endl;
         return false;

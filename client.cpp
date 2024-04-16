@@ -141,21 +141,6 @@ void recv_message(int client_socket) {
     }
 }
 
-bool signup_user(int client_socket) {
-    char username[200], password[200];
-    cout << "Enter a username: ";
-    cin.getline(username, sizeof(username));
-    cout << "Enter a password: ";
-    cin.getline(password, sizeof(password));
-
-    send(client_socket, username, sizeof(username), 0);
-    send(client_socket, password, sizeof(password), 0);
-
-    char response[2];
-    recv(client_socket, response, sizeof(response), 0);
-    return response[0] == '1';
-}
-
 bool login_user(int client_socket) {
     char username[200], password[200];
     cout << "Enter your username: ";
@@ -169,4 +154,35 @@ bool login_user(int client_socket) {
     char response[2];
     recv(client_socket, response, sizeof(response), 0);
     return response[0] == '1';
+}
+
+bool signup_user(int client_socket) {
+    char username_signup[200], password_signup[200];
+    cout << "Enter a username: ";
+    cin.getline(username_signup, sizeof(username_signup));
+    cout << "Enter a password: ";
+    cin.getline(password_signup, sizeof(password_signup));
+
+    send(client_socket, username_signup, sizeof(username_signup), 0);
+    send(client_socket, password_signup, sizeof(password_signup), 0);
+
+    char response[2];
+    recv(client_socket, response, sizeof(response), 0);
+    if (response[0] == '1') {
+        cout << "Signup successful. Do you want to sign up again (1) or log in (2)? ";
+        int choice;
+        cin >> choice;
+        cin.ignore(); // Clear input buffer
+        if (choice == 1) {
+            return signup_user(client_socket); // Recursive call to signup again
+        } else if (choice == 2) {
+            return true; // Continue with login
+        } else {
+            cout << "Invalid choice. Exiting..." << endl;
+            return false;
+        }
+    } else {
+        cout << "Signup failed. Exiting..." << endl;
+        return false;
+    }
 }

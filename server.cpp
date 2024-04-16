@@ -146,13 +146,14 @@ void handle_client(int client_socket, int id) {
     recv(client_socket, name, sizeof(name), 0);
     recv(client_socket, str, sizeof(str), 0); // Receive password
     if (!authenticate_user(name, str)) {
-        if (!signup_user(name, str)) {
-            send(client_socket, "0", 2, 0); // Sign-up failed
-            close(client_socket);
-            return;
-        }
+        // Inform the client that authentication failed
+        send(client_socket, "0", 2, 0); // Authentication failed
+        // Close the connection and exit the function
+        close(client_socket);
+        return;
     }
-    send(client_socket, "1", 2, 0); // Sign-up or authentication success
+    // Inform the client that authentication was successful
+    send(client_socket, "1", 2, 0); // Authentication success
 
     // Display welcome message
     string welcome_message = string(name) + " has joined";
@@ -183,13 +184,13 @@ void handle_client(int client_socket, int id) {
 }
 
 bool authenticate_user(const string& username, const string& password) {
-    // Open the file to read usernames and passwords
     ifstream file("user_credentials.txt");
     if (!file.is_open()) {
         cerr << "Error: Unable to open file." << endl;
         return false;
     }
 
+    bool authenticated = false;
     string line;
     while (getline(file, line)) {
         istringstream iss(line);
@@ -200,13 +201,19 @@ bool authenticate_user(const string& username, const string& password) {
             return false;
         }
         if (user == username && pass == password) {
-            file.close();
-            return true;
+            authenticated = true;
+            break;
         }
     }
 
     file.close();
-    return false;
+    if (authenticated) {
+        cout << "Authentication successful." << endl;
+        return true;
+    } else {
+        cerr << "User doesn't have access to the chatroom" << endl;
+        return false;
+    }
 }
 
 bool signup_user(const string& username, const string& password) {
@@ -217,29 +224,9 @@ bool signup_user(const string& username, const string& password) {
         return false;
     }
 
-    // Check if the username is already taken
-    ifstream infile("user_credentials.txt");
-    string line;
-    while (getline(infile, line)) {
-        istringstream iss(line);
-        string user, pass;
-        if (!(iss >> user >> pass)) {
-            cerr << "Error: Invalid data format in file." << endl;
-            infile.close();
-            file.close();
-            return false;
-        }
-        if (user == username) {
-            cerr << "Error: Username already exists." << endl;
-            infile.close();
-            file.close();
-            return false;
-        }
-    }
-    infile.close();
-
     // Save new user credentials to file
     file << username << " " << password << endl;
     file.close();
     return true;
 }
+

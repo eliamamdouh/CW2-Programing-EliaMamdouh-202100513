@@ -235,40 +235,41 @@ bool authenticate_user(const string& username, const string& password) {
     }
 }
 
-bool user_exists(const string& username) {
+bool signup_user(const string& username, const string& password) {
     ifstream file("user_credentials.txt");
     string line;
     while (getline(file, line)) {
         size_t pos = line.find(" ");
         if (pos != string::npos) {
             string existing_username = line.substr(0, pos);
+            string existing_password = line.substr(pos + 1);
             if (existing_username == username) {
                 file.close();
-                return true;
+                cerr << "Error: Username already exists." << endl;
+                return false;
+            }
+            if (existing_password == password) {
+                file.close();
+                cerr << "Error: Password already in use." << endl;
+                return false;
             }
         }
     }
     file.close();
-    return false;
-}
-
-bool signup_user(const string& username, const string& password) {
-    // Check if user already exists
-    if (user_exists(username)) {
-        cerr << "Error: User already exists." << endl;
-        return false;
-    }
 
     // Open the file to append new user credentials
-    ofstream file("user_credentials.txt", ios::app);
-    if (!file.is_open()) {
+    ofstream output_file("user_credentials.txt", ios::app);
+    if (!output_file.is_open()) {
         cerr << "Error: Unable to open file for writing." << endl;
         return false;
     }
 
     // Save new user credentials to file
-    file << username << " " << password << endl;
-    file.close();
+    output_file << username << " " << password << endl;
+    output_file.close();
     return true;
 }
+
+
+
 

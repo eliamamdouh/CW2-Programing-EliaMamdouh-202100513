@@ -60,22 +60,16 @@ int main() {
             cout << "Sign-up failed. Exiting..." << endl;
             close(client_socket);
             exit(EXIT_FAILURE);
-        } else {
-            cout << "Signup successful." << endl;
-            // Don't exit here, let the program continue
         }
     } else if (choice == 2) {
         login_success = login_user(client_socket);
+        if (!login_success) {
+            cout << "Log-in failed. Exiting..." << endl;
+            close(client_socket);
+            exit(EXIT_FAILURE);
+        }
     } else {
         cout << "Invalid choice. Exiting..." << endl;
-        close(client_socket);
-        exit(EXIT_FAILURE);
-    }
-
-    // If login was successful or user chose to log in after signing up,
-    // continue running the chat room.
-    if (!login_success && choice == 2) {
-        cout << "Log-in failed. Exiting..." << endl;
         close(client_socket);
         exit(EXIT_FAILURE);
     }
@@ -162,7 +156,12 @@ bool login_user(int client_socket) {
 
     char response[2];
     recv(client_socket, response, sizeof(response), 0);
-    return response[0] == '1';
+    if (response[0] == '1') {
+        cout << "Log-in successful." << endl;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool signup_user(int client_socket) {
@@ -181,18 +180,9 @@ bool signup_user(int client_socket) {
     char response[2];
     recv(client_socket, response, sizeof(response), 0);
     if (response[0] == '1') {
-        cout << "Signup successful." << endl;
-        ofstream file("user_credentials.txt", ios::app);
-        if (!file.is_open()) {
-            cerr << "Error: Unable to open file for writing." << endl;
-            return false;
-        }
-        // Save new user credentials to file
-        file << username_signup << " " << password_signup << endl;
-        file.close();
-        return true; // Return true after successful sign-up
+        cout << "Sign-up successful." << endl;
+        return true;
     } else {
-        cout << "Signup failed. Exiting..." << endl;
         return false;
     }
 }

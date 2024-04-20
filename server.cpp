@@ -38,6 +38,27 @@ void handle_client(int client_socket, int id);
 bool authenticate_user(const string& username, const string& password); // Function to authenticate user
 bool signup_user(const string& username, const string& password); // Function to sign up new user
 
+// Caesar cipher decryption function
+string decryptMessage(const string& encryptedMessage, int shift) {
+    string decryptedMessage = encryptedMessage;
+    for (char& c : decryptedMessage) {
+        if (isalnum(c)) { // Check if character is alphanumeric
+            char base;
+            if (isdigit(c)) {
+                base = '0';
+            }
+            else if (isupper(c)) {
+                base = 'A';
+            }
+            else {
+                base = 'a';
+            }
+            c = ((c - base + 26 - shift) % 26) + base; // Reversing the shift for decryption
+        }
+    }
+    return decryptedMessage;
+}
+
 int main() {
     int server_socket;
     if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -195,10 +216,11 @@ void handle_client(int client_socket, int id) {
             end_connection(id);
             return;
         }
+        string decrypted_message = decryptMessage(string(str), 3); // Decrypt with shift of 3
         broadcast_message(string(name), id);
         broadcast_message(id, id);
-        broadcast_message(string(str), id);
-        shared_print(color(id) + name + " : " + def_col + str);
+        broadcast_message(decrypted_message, id);
+        shared_print(color(id) + name + " : " + def_col + decrypted_message);
     }
 }
 
@@ -269,7 +291,3 @@ bool signup_user(const string& username, const string& password) {
     output_file.close();
     return true;
 }
-
-
-
-

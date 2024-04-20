@@ -18,6 +18,32 @@ int client_socket;
 string def_col = "\033[0m";
 string colors[] = {"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m"};
 
+// Caesar cipher encryption function
+string encryptMessage(const string& message, int shift) {
+    string encryptedMessage = message;
+    for (char& c : encryptedMessage) {
+        if (isalnum(c)) { // Check if character is alphanumeric
+            char base;
+            if (isdigit(c)) {
+                base = '0';
+            }
+            else if (isupper(c)) {
+                base = 'A';
+            }
+            else {
+                base = 'a';
+            }
+            c = ((c - base + shift) % 26) + base; 
+        }
+    }
+    return encryptedMessage;
+}
+
+// Caesar cipher decryption function
+string decryptMessage(const string& encryptedMessage, int shift) {
+    return encryptMessage(encryptedMessage, 26 - shift); // Reversing the shift for decryption
+}
+
 void catch_ctrl_c(int signal);
 string color(int code);
 void send_message(int client_socket);
@@ -110,7 +136,9 @@ void send_message(int client_socket) {
         cout << colors[1] << "You: " << def_col;
         char str[200];
         cin.getline(str, sizeof(str));
-        send(client_socket, str, sizeof(str), 0);
+        string encrypted_message = encryptMessage(string(str), 3); // Encrypt with shift of 3
+        cout << "Encrypted Message: " << encrypted_message << endl; // Display encrypted message
+        send(client_socket, encrypted_message.c_str(), sizeof(str), 0);
         if (strcmp(str, "#exit") == 0) {
             exit_flag = true;
             t_recv.detach();
@@ -186,3 +214,4 @@ bool signup_user(int client_socket) {
         return false;
     }
 }
+

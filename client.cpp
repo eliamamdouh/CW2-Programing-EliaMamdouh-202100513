@@ -1,14 +1,13 @@
-#include <bits/stdc++.h>
-#include <sys/types.h>
+#include <iostream>
+#include <string>
+#include <thread>
+#include <fstream>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <errno.h>
-#include <string.h>
 #include <arpa/inet.h>
-#include <unistd.h>
+#include <cstring>
 #include <signal.h>
-#include <mutex>
-#include <fstream> // For file operations
 
 using namespace std;
 
@@ -17,6 +16,16 @@ thread t_send, t_recv;
 int client_socket;
 string def_col = "\033[0m";
 string colors[] = {"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m"};
+
+// Function declarations
+string encryptMessage(const string& message, int shift);
+string decryptMessage(const string& encryptedMessage, int shift);
+void catch_ctrl_c(int signal);
+string color(int code);
+void send_message(int client_socket);
+void recv_message(int client_socket);
+bool signup_user(int client_socket);
+bool login_user(int client_socket);
 
 // Caesar cipher encryption function
 string encryptMessage(const string& message, int shift) {
@@ -44,12 +53,108 @@ string decryptMessage(const string& encryptedMessage, int shift) {
     return encryptMessage(encryptedMessage, 26 - shift); // Reversing the shift for decryption
 }
 
-void catch_ctrl_c(int signal);
-string color(int code);
-void send_message(int client_socket);
-void recv_message(int client_socket);
-bool signup_user(int client_socket);
-bool login_user(int client_socket);
+// Handler for "Ctrl + C"
+void catch_ctrl_c(int signal) {
+    char str[200] = "#exit";
+    send(client_socket, str, sizeof(str), 0);
+    exit_flag = true;
+    t_send.detach();
+    t_recv.detach();
+    close(client_socket);
+    exit(signal);
+}
+
+// Function to set terminal color based on client id
+string color(int code) {
+    return colors[code % 6];
+}
+
+// Function to send message to server
+void send_message(int client_socket) {
+    while (true) {
+        cout << colors[1] << "You: " << def_col;
+        char str[200];
+        cin.getline(str, sizeof(str));
+        string encrypted_message = encryptMessage(string(str), 3); // Encrypt with shift of 3
+        cout << "Encrypted Message: " << encrypted_message << endl; // Display encrypted message
+        send(client_socket, encrypted_message.c_str(), sizeof(str), 0);
+        if (strcmp(str, "#exit") == 0) {
+            exit_flag = true;
+            t_recv.detach();
+            close(client_socket);
+            return;
+        }
+    }
+}
+
+// Function to receive message from server
+void recv_message(int client_socket) {
+    while (true) {
+        if (exit_flag)
+            return;
+        char name[200], str[200];
+        int color_code;
+        int bytes_received = recv(client_socket, name, sizeof(name), 0);
+        if (bytes_received <= 0)
+            continue;
+        recv(client_socket, &color_code, sizeof(color_code), 0);
+        recv(client_socket, str, sizeof(str), 0);
+        cout << "\033[2K\r"; // Erase the current line
+        if (strcmp(name, "#NULL") != 0)
+            cout << color(color_code) << name << " : " << def_col << str << endl;
+        else
+            cout << color(color_code) << str << endl;
+        cout << colors[1] << "You: " << def_col << flush;
+    }
+}
+
+// Function to handle user sign-up process
+bool signup_user(int client_socket) {
+    char username_signup[200], password_signup[200];
+    cout << "Enter a username: ";
+    cin.getline(username_signup, sizeof(username_signup));
+    cout << "Enter a password: ";
+    cin.getline(password_signup, sizeof(password_signup));
+
+    // Send choice (1 for sign-up)
+    int choice = 1;
+    send(client_socket, username_signup, sizeof(username_signup), 0);
+    send(client_socket, password_signup, sizeof(password_signup), 0);
+    send(client_socket, &choice, sizeof(choice), 0);
+
+    char response[2];
+    recv(client_socket, response, sizeof(response), 0);
+    if (response[0] == '1') {
+        cout << "Sign-up successful." << endl;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// Function to handle user login process
+bool login_user(int client_socket) {
+    char username[200], password[200];
+    cout << "Enter your username: ";
+    cin.getline(username, sizeof(username));
+    cout << "Enter your password: ";
+    cin.getline(password, sizeof(password));
+
+    // Send choice (2 for login)
+    int choice = 2;
+    send(client_socket, username, sizeof(username), 0);
+    send(client_socket, password, sizeof(password), 0);
+    send(client_socket, &choice, sizeof(choice), 0);
+
+    char response[2];
+    recv(client_socket, response, sizeof(response), 0);
+    if (response[0] == '1') {
+        cout << "Log-in successful." << endl;
+        return true;
+    } else {
+        return false;
+    }
+}
 
 int main() {
     if ((client_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -114,104 +219,3 @@ int main() {
 
     return 0;
 }
-
-// Handler for "Ctrl + C"
-void catch_ctrl_c(int signal) {
-    char str[200] = "#exit";
-    send(client_socket, str, sizeof(str), 0);
-    exit_flag = true;
-    t_send.detach();
-    t_recv.detach();
-    close(client_socket);
-    exit(signal);
-}
-
-string color(int code) {
-    return colors[code % 6];
-}
-
-// Send message to everyone
-void send_message(int client_socket) {
-    while (true) {
-        cout << colors[1] << "You: " << def_col;
-        char str[200];
-        cin.getline(str, sizeof(str));
-        string encrypted_message = encryptMessage(string(str), 3); // Encrypt with shift of 3
-        cout << "Encrypted Message: " << encrypted_message << endl; // Display encrypted message
-        send(client_socket, encrypted_message.c_str(), sizeof(str), 0);
-        if (strcmp(str, "#exit") == 0) {
-            exit_flag = true;
-            t_recv.detach();
-            close(client_socket);
-            return;
-        }
-    }
-}
-
-// Receive message
-void recv_message(int client_socket) {
-    while (true) {
-        if (exit_flag)
-            return;
-        char name[200], str[200];
-        int color_code;
-        int bytes_received = recv(client_socket, name, sizeof(name), 0);
-        if (bytes_received <= 0)
-            continue;
-        recv(client_socket, &color_code, sizeof(color_code), 0);
-        recv(client_socket, str, sizeof(str), 0);
-        cout << "\033[2K\r"; // Erase the current line
-        if (strcmp(name, "#NULL") != 0)
-            cout << color(color_code) << name << " : " << def_col << str << endl;
-        else
-            cout << color(color_code) << str << endl;
-        cout << colors[1] << "You: " << def_col << flush;
-    }
-}
-
-bool login_user(int client_socket) {
-    char username[200], password[200];
-    cout << "Enter your username: ";
-    cin.getline(username, sizeof(username));
-    cout << "Enter your password: ";
-    cin.getline(password, sizeof(password));
-
-    // Send choice (2 for login)
-    int choice = 2;
-    send(client_socket, username, sizeof(username), 0);
-    send(client_socket, password, sizeof(password), 0);
-    send(client_socket, &choice, sizeof(choice), 0);
-
-    char response[2];
-    recv(client_socket, response, sizeof(response), 0);
-    if (response[0] == '1') {
-        cout << "Log-in successful." << endl;
-        return true;
-    } else {
-        return false;
-    }
-}
-
-bool signup_user(int client_socket) {
-    char username_signup[200], password_signup[200];
-    cout << "Enter a username: ";
-    cin.getline(username_signup, sizeof(username_signup));
-    cout << "Enter a password: ";
-    cin.getline(password_signup, sizeof(password_signup));
-
-    // Send choice (1 for sign-up)
-    int choice = 1;
-    send(client_socket, username_signup, sizeof(username_signup), 0);
-    send(client_socket, password_signup, sizeof(password_signup), 0);
-    send(client_socket, &choice, sizeof(choice), 0);
-
-    char response[2];
-    recv(client_socket, response, sizeof(response), 0);
-    if (response[0] == '1') {
-        cout << "Sign-up successful." << endl;
-        return true;
-    } else {
-        return false;
-    }
-}
-
